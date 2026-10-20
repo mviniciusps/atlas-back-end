@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="atlas-back-end.csproj" />
+  <Project Path="AtlasComex.Infrastructure/AtlasComex.Infrastructure.csproj" />
+</Solution>
