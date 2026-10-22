@@ -143,7 +143,9 @@ public class ProcessosController : ControllerBase
             item => item.IdProcesso == idProcesso,
             cancellationToken);
 
-        if(processo is null) NotFound("Processo não encontrado.");
+        if(processo is null){
+            return NotFound("Processo não encontrado.");
+        }
 
         //Atribuição de processos editaveis, automaticos ficam intactos
         processo?.ReferenciaCliente = dados.ReferenciaCliente?.Trim();
