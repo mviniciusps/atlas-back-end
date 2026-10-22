@@ -1,4 +1,5 @@
 using atlas_back_end.Dtos.Processos;
+using AtlasComex.Infrastructure.Models;
 using AtlasComex.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -64,5 +65,71 @@ public class ProcessosController : ControllerBase
             .ToListAsync(cancellationToken);
 
         return Ok(processos);
+    }
+
+    // Cria um processo para um estabelecimento ativo do importador.
+    [HttpPost]
+    public async Task<IActionResult> Criar(
+        [FromBody] ProcessoCadastroDto dados,
+        CancellationToken cancellationToken)
+    {
+        // Confirma que o estabelecimento informado existe e está ativo.
+        var estabelecimento = await _context.EstabelecimentoImportadors
+            .AsNoTracking()
+            .Where(item =>
+                item.IdEstabelecimento == dados.IdEstabelecimento
+                && item.Ativo)
+            .Select(item => new
+            {
+                item.IdEstabelecimento,
+                item.IdImportador
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (estabelecimento is null)
+        {
+            return NotFound("Estabelecimento ativo não encontrado.");
+        }
+
+        var numeroProcesso = dados.NumeroProcesso.Trim();
+
+        // Evita repetir o número dentro do mesmo estabelecimento.
+        var processoJaExiste = await _context.Processos
+            .AnyAsync(
+                processo =>
+                    processo.IdEstabelecimento == dados.IdEstabelecimento
+                    && processo.NumeroProcesso == numeroProcesso,
+                cancellationToken);
+
+        if (processoJaExiste)
+        {
+            return Conflict(
+                "Já existe um processo com esse número para o estabelecimento.");
+        }
+
+        // Os campos que dependem de integrações externas ficam sem preenchimento aqui.
+        var processoNovo = new Processo
+        {
+            IdEstabelecimento = estabelecimento.IdEstabelecimento,
+            NumeroProcesso = numeroProcesso,
+            ReferenciaCliente = dados.ReferenciaCliente?.Trim(),
+            PrevisaoChegada = dados.PrevisaoChegada,
+            Exportador = dados.Exportador?.Trim(),
+            Observacoes = dados.Observacoes?.Trim(),
+            ConhecimentoMaster = dados.ConhecimentoMaster?.Trim(),
+            ConhecimentoHouse = dados.ConhecimentoHouse?.Trim(),
+            Modal = dados.Modal?.Trim(),
+            Desembaraco = dados.Desembaraco,
+            RecintoAlfandegado = dados.RecintoAlfandegado?.Trim(),
+            Situacao = dados.Situacao.Trim()
+        };
+
+        _context.Processos.Add(processoNovo);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return CreatedAtAction(
+            nameof(Listar),
+            new { idImportador = estabelecimento.IdImportador },
+            new { idProcesso = processoNovo.IdProcesso });
     }
 }

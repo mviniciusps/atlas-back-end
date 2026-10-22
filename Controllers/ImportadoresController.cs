@@ -95,7 +95,8 @@ public class ImportadoresController : ControllerBase
         var importador = new Importador
         {
             RazaoSocial = dados.RazaoSocial.Trim(),
-            NomeFantasia = dados.NomeFantasia?.Trim()
+            NomeFantasia = dados.NomeFantasia?.Trim(),
+            Ativo = true
         };
 
         foreach (var estabelecimento in estabelecimentos)
@@ -105,7 +106,8 @@ public class ImportadoresController : ControllerBase
                 {
                     Cnpj = estabelecimento.Cnpj,
                     NomeEstabelecimento =
-                        estabelecimento.Dados.NomeEstabelecimento?.Trim()
+                        estabelecimento.Dados.NomeEstabelecimento?.Trim(),
+                    Ativo = true
                 });
         }
 
