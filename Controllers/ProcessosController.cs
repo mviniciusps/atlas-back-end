@@ -132,4 +132,33 @@ public class ProcessosController : ControllerBase
             new { idImportador = estabelecimento.IdImportador },
             new { idProcesso = processoNovo.IdProcesso });
     }
+
+    [HttpPut("{idProcesso:long}")]
+    public async Task<IActionResult> Atualizar(
+        long idProcesso,
+        [FromBody] ProcessoAtualizacaoDto dados,
+        CancellationToken cancellationToken)
+    {
+        var processo = await _context.Processos.FirstOrDefaultAsync(
+            item => item.IdProcesso == idProcesso,
+            cancellationToken);
+
+        if(processo is null) NotFound("Processo não encontrado.");
+
+        //Atribuição de processos editaveis, automaticos ficam intactos
+        processo?.ReferenciaCliente = dados.ReferenciaCliente?.Trim();
+        processo?.PrevisaoChegada = dados.PrevisaoChegada;
+        processo?.Exportador = dados.Exportador?.Trim();
+        processo?.Observacoes = dados.Observacoes?.Trim();
+        processo?.ConhecimentoMaster = dados.ConhecimentoMaster?.Trim();
+        processo?.ConhecimentoHouse = dados.ConhecimentoHouse?.Trim();
+        processo?.Modal = dados.Modal?.Trim();
+        processo?.Desembaraco = dados.Desembaraco;
+        processo?.RecintoAlfandegado = dados.RecintoAlfandegado?.Trim();
+        processo?.Situacao = dados.Situacao.Trim();
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
 }
