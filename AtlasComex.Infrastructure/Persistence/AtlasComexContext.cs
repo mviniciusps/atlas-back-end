@@ -18,6 +18,8 @@ public partial class AtlasComexContext : DbContext
 
     public virtual DbSet<Processo> Processos { get; set; }
 
+    public virtual DbSet<DocumentoProcesso> DocumentoProcessos { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<EstabelecimentoImportador>(entity =>
@@ -77,6 +79,30 @@ public partial class AtlasComexContext : DbContext
                 .HasForeignKey(d => d.IdEstabelecimento)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Processo_EstabelecimentoImportador");
+        });
+
+        modelBuilder.Entity<DocumentoProcesso>(entity =>
+        {
+            entity.HasKey(e => e.IdDocumento);
+
+            entity.ToTable("DocumentoProcesso");
+
+            entity.Property(e => e.CaminhoArmazenamento).HasMaxLength(500);
+            entity.Property(e => e.ContentType).HasMaxLength(150);
+            entity.Property(e => e.DataUpload)
+                .HasDefaultValueSql(
+                    "(sysutcdatetime())",
+                    "DF_DocumentoProcesso_DataUpload");
+            entity.Property(e => e.IncluirNaDuimp)
+                .HasDefaultValue(false, "DF_DocumentoProcesso_IncluirNaDuimp");
+            entity.Property(e => e.NomeArquivo).HasMaxLength(260);
+            entity.Property(e => e.TipoDocumento).HasMaxLength(80);
+
+            entity.HasOne(d => d.IdProcessoNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdProcesso)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_DocumentoProcesso_Processo");
         });
 
         OnModelCreatingPartial(modelBuilder);
