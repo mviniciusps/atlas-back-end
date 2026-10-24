@@ -1,10 +1,12 @@
+﻿using System;
+using System.Collections.Generic;
+
 namespace AtlasComex.Infrastructure.Models;
 
 public partial class DocumentoProcesso
 {
     public int IdDocumento { get; set; }
 
-    // SQL Server BIGINT corresponde ao tipo long no C#.
     public long IdProcesso { get; set; }
 
     public string TipoDocumento { get; set; } = null!;
@@ -20,6 +22,8 @@ public partial class DocumentoProcesso
     public bool IncluirNaDuimp { get; set; }
 
     public DateTime DataUpload { get; set; }
+
+    public string StatusConferencia { get; set; } = null!;
 
     public virtual Processo IdProcessoNavigation { get; set; } = null!;
 }

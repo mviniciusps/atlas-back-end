@@ -41,5 +41,7 @@ public partial class Processo
 
     public DateTime DataCriacao { get; set; }
 
+    public virtual ICollection<DocumentoProcesso> DocumentoProcessos { get; set; } = new List<DocumentoProcesso>();
+
     public virtual EstabelecimentoImportador IdEstabelecimentoNavigation { get; set; } = null!;
 }

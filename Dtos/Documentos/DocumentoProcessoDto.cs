@@ -9,6 +9,7 @@
         public string? ContentType { get; set; }
         public long TamanhoBytes { get; set; }
         public bool IncluirNaDuimp { get; set; }
+        public string StatusConferencia { get; set; } = string.Empty;
         public DateTime DataUpload { get; set; }
     }
 }

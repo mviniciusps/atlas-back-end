@@ -4,6 +4,7 @@ using AtlasComex.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace atlas_back_end.Controllers;
 
@@ -12,6 +13,7 @@ namespace atlas_back_end.Controllers;
 public class DocumentosController : ControllerBase
 {
     private const long TamanhoMaximoArquivo = 25 * 1024 * 1024;
+    private readonly ILogger<DocumentosController> _logger;
 
     private static readonly HashSet<string> ExtensoesPermitidas =
         new(StringComparer.OrdinalIgnoreCase)
@@ -27,15 +29,25 @@ public class DocumentosController : ControllerBase
             ".tiff",
         };
 
+    private static readonly HashSet<string> StatusConferenciaPermitidos =
+        new(StringComparer.Ordinal)
+        {
+            "Aguardando conferência",
+            "Conferido",
+            "Com divergência",
+        };
+
     private readonly AtlasComexContext _context;
     private readonly IWebHostEnvironment _ambiente;
 
     public DocumentosController(
         AtlasComexContext context,
-        IWebHostEnvironment ambiente)
+        IWebHostEnvironment ambiente,
+        ILogger<DocumentosController> logger)
     {
         _context = context;
         _ambiente = ambiente;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -66,6 +78,7 @@ public class DocumentosController : ControllerBase
                 ContentType = documento.ContentType,
                 TamanhoBytes = documento.TamanhoBytes,
                 IncluirNaDuimp = documento.IncluirNaDuimp,
+                StatusConferencia = documento.StatusConferencia,
                 DataUpload = documento.DataUpload,
             })
             .ToListAsync(cancellationToken);
@@ -214,6 +227,132 @@ public class DocumentosController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{idDocumento:int}/tipo")]
+    public async Task<IActionResult> AtualizarTipo(
+        long idProcesso,
+        int idDocumento,
+        [FromBody] DocumentoTipoAtualizacaoDto dados,
+        CancellationToken cancellationToken)
+    {
+        var tipo = dados.TipoDocumento.Trim();
+
+        if (string.IsNullOrWhiteSpace(tipo))
+        {
+            return BadRequest("Informe o tipo do documento.");
+        }
+
+        var documento = await _context.DocumentoProcessos
+            .SingleOrDefaultAsync(
+                item => item.IdDocumento == idDocumento
+                    && item.IdProcesso == idProcesso,
+                cancellationToken);
+
+        if (documento is null)
+        {
+            return NotFound("Documento não encontrado neste processo.");
+        }
+
+        documento.TipoDocumento = tipo;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpPut("{idDocumento:int}/status-conferencia")]
+    public async Task<IActionResult> AtualizarStatusConferencia(
+        long idProcesso,
+        int idDocumento,
+        [FromBody] DocumentoStatusConferenciaDto dados,
+        CancellationToken cancellationToken)
+    {
+        var status = dados.StatusConferencia.Trim();
+
+        if (!StatusConferenciaPermitidos.Contains(status))
+        {
+            return BadRequest("Status de conferência inválido.");
+        }
+
+        var documento = await _context.DocumentoProcessos
+            .SingleOrDefaultAsync(
+                item => item.IdDocumento == idDocumento
+                    && item.IdProcesso == idProcesso,
+                cancellationToken);
+
+        if (documento is null)
+        {
+            return NotFound("Documento não encontrado neste processo.");
+        }
+
+        documento.StatusConferencia = status;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
+    [HttpDelete("{idDocumento:int}")]
+    public async Task<IActionResult> Excluir(
+            long idProcesso,
+            int idDocumento,
+            CancellationToken cancellationToken
+    )
+    {
+        var documento = await _context.DocumentoProcessos
+       .SingleOrDefaultAsync(
+           item => item.IdDocumento == idDocumento
+               && item.IdProcesso == idProcesso,
+           cancellationToken);
+
+        if(documento is null)
+        {
+            return NotFound("Documento não encontrado neste processo.");
+        }
+
+        //Usa somente o nome do arquivo e monta o caminhho dentro da pasta deste processo
+        var nomeArmazenado = Path.GetFileName(documento.CaminhoArmazenamento);
+
+        if(string.IsNullOrWhiteSpace(nomeArmazenado) || nomeArmazenado is "." or "..")
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, "Nome do arquivo inválido.");
+        }
+
+        var caminhoFisico = Path.Combine(
+            _ambiente.ContentRootPath,
+            "storage",
+            "documentos",
+            idProcesso.ToString(),
+            nomeArmazenado);
+
+        //Remove primeiro o registro do banco
+        _context.DocumentoProcessos.Remove(documento);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        //Se a limpeza do arquivo falhar, registra o problema para investigação
+        try
+        {
+            if (System.IO.File.Exists(caminhoFisico))
+            {
+                System.IO.File.Delete(caminhoFisico);
+            }
+        }
+
+        catch (IOException erro)
+        {
+            _logger.LogError(
+            erro,
+            "Não foi possível apagar o arquivo do documento {IdDocumento}.",
+            idDocumento);
+        }
+        catch(UnauthorizedAccessException erro)
+        {
+            _logger.LogError(
+            erro,
+            "Não foi possível apagar o arquivo do documento {IdDocumento}.",
+            idDocumento);
+        }
+
+        return NoContent();
+    }
+
     private static DocumentoProcessoDto ConverterDocumento(
         DocumentoProcesso documento)
     {
@@ -226,6 +365,7 @@ public class DocumentosController : ControllerBase
             ContentType = documento.ContentType,
             TamanhoBytes = documento.TamanhoBytes,
             IncluirNaDuimp = documento.IncluirNaDuimp,
+            StatusConferencia = documento.StatusConferencia,
             DataUpload = documento.DataUpload,
         };
     }
