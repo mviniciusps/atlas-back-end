@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # Arquivos enviados armazenados localmente durante o desenvolvimento
 /storage/
+
+# Configuração local backend
+/appsettings.json
