@@ -14,9 +14,13 @@ public partial class AtlasComexContext : DbContext
 
     public virtual DbSet<DocumentoProcesso> DocumentoProcessos { get; set; }
 
+    public virtual DbSet<Duimp> Duimps { get; set; }
+
     public virtual DbSet<EstabelecimentoImportador> EstabelecimentoImportadors { get; set; }
 
     public virtual DbSet<Importador> Importadors { get; set; }
+
+    public virtual DbSet<ItemDuimp> ItemDuimps { get; set; }
 
     public virtual DbSet<Processo> Processos { get; set; }
 
@@ -43,6 +47,62 @@ public partial class AtlasComexContext : DbContext
                 .HasForeignKey(d => d.IdProcesso)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_DocumentoProcesso_Processo");
+        });
+
+        modelBuilder.Entity<Duimp>(entity =>
+        {
+            entity.HasKey(e => e.IdDuimp);
+
+            entity.ToTable("Duimp");
+
+            entity.HasIndex(e => e.IdProcesso, "UQ_Duimp_IdProcesso").IsUnique();
+
+            entity.Property(e => e.BairroImportador).HasMaxLength(100);
+            entity.Property(e => e.CepImportador)
+                .HasMaxLength(8)
+                .IsUnicode(false);
+            entity.Property(e => e.CodigoMunicipioImportador)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.ComplementoEnderecoImportador).HasMaxLength(100);
+            entity.Property(e => e.DataAtualizacao)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_Duimp_DataAtualizacao");
+            entity.Property(e => e.DataCriacao)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_Duimp_DataCriacao");
+            entity.Property(e => e.DocumentoImportador)
+                .HasMaxLength(14)
+                .IsUnicode(false);
+            entity.Property(e => e.LogradouroImportador).HasMaxLength(200);
+            entity.Property(e => e.MunicipioImportador).HasMaxLength(100);
+            entity.Property(e => e.NomeImportador)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.NumeroEnderecoImportador).HasMaxLength(30);
+            entity.Property(e => e.PaisImportador)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.StatusIntegracaoPortal)
+                .HasMaxLength(30)
+                .HasDefaultValue("NaoEnviada", "DF_Duimp_StatusIntegracaoPortal");
+            entity.Property(e => e.StatusRascunho)
+                .HasMaxLength(30)
+                .HasDefaultValue("Rascunho", "DF_Duimp_StatusRascunho");
+            entity.Property(e => e.TipoPessoaImportador)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.UfImportador)
+                .HasMaxLength(2)
+                .IsUnicode(false)
+                .IsFixedLength();
+
+            entity.HasOne(d => d.IdProcessoNavigation).WithOne(p => p.DuimpNavigation)
+                .HasForeignKey<Duimp>(d => d.IdProcesso)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Duimp_Processo");
         });
 
         modelBuilder.Entity<EstabelecimentoImportador>(entity =>
@@ -75,6 +135,74 @@ public partial class AtlasComexContext : DbContext
             entity.Property(e => e.DataCriacao).HasDefaultValueSql("(sysutcdatetime())", "DF_Importador_DataCriacao");
             entity.Property(e => e.NomeFantasia).HasMaxLength(200);
             entity.Property(e => e.RazaoSocial).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<ItemDuimp>(entity =>
+        {
+            entity.HasKey(e => e.IdItemDuimp);
+
+            entity.ToTable("ItemDuimp");
+
+            entity.HasIndex(e => new { e.IdDuimp, e.NumeroItem }, "UQ_ItemDuimp_Duimp_NumeroItem").IsUnique();
+
+            entity.Property(e => e.Aplicacao).HasMaxLength(100);
+            entity.Property(e => e.CaracterizacaoImportacao).HasMaxLength(60);
+            entity.Property(e => e.CoberturaCambial).HasMaxLength(50);
+            entity.Property(e => e.CodigoExportador).HasMaxLength(100);
+            entity.Property(e => e.CodigoFabricante).HasMaxLength(100);
+            entity.Property(e => e.CodigoMunicipioConsumo)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.CondicaoMercadoria).HasMaxLength(20);
+            entity.Property(e => e.DataAtualizacao)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_ItemDuimp_DataAtualizacao");
+            entity.Property(e => e.DataCriacao)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_ItemDuimp_DataCriacao");
+            entity.Property(e => e.EnderecoExportador).HasMaxLength(500);
+            entity.Property(e => e.EnderecoFabricante).HasMaxLength(500);
+            entity.Property(e => e.Incoterm)
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.MetodoValoracao).HasMaxLength(100);
+            entity.Property(e => e.MoedaNegociada)
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.MunicipioConsumo).HasMaxLength(100);
+            entity.Property(e => e.Ncm)
+                .HasMaxLength(8)
+                .IsUnicode(false);
+            entity.Property(e => e.NomeExportador).HasMaxLength(200);
+            entity.Property(e => e.NomeFabricante).HasMaxLength(200);
+            entity.Property(e => e.NomeProduto).HasMaxLength(200);
+            entity.Property(e => e.NumeroSerie).HasMaxLength(150);
+            entity.Property(e => e.PaisExportador)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.PaisOrigem)
+                .HasMaxLength(10)
+                .IsUnicode(false);
+            entity.Property(e => e.PesoLiquido).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.QuantidadeMedidaEstatistica).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.QuantidadeUnidadeComercializada).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.UfConsumo)
+                .HasMaxLength(2)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.UnidadeComercializada).HasMaxLength(30);
+            entity.Property(e => e.UnidadeMedidaEstatistica).HasMaxLength(30);
+            entity.Property(e => e.ValorUnitarioCondicaoVenda).HasColumnType("decimal(19, 6)");
+            entity.Property(e => e.VersaoExportador).HasMaxLength(50);
+            entity.Property(e => e.VersaoFabricante).HasMaxLength(50);
+            entity.Property(e => e.VersaoProduto).HasMaxLength(50);
+
+            entity.HasOne(d => d.IdDuimpNavigation).WithMany(p => p.ItemDuimps)
+                .HasForeignKey(d => d.IdDuimp)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ItemDuimp_Duimp");
         });
 
         modelBuilder.Entity<Processo>(entity =>

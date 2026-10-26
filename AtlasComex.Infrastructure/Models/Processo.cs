@@ -43,5 +43,7 @@ public partial class Processo
 
     public virtual ICollection<DocumentoProcesso> DocumentoProcessos { get; set; } = new List<DocumentoProcesso>();
 
+    public virtual Duimp? DuimpNavigation { get; set; }
+
     public virtual EstabelecimentoImportador IdEstabelecimentoNavigation { get; set; } = null!;
 }
