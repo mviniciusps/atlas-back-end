@@ -289,30 +289,32 @@ public class DocumentosController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("{idDocumento:int}")]
-    public async Task<IActionResult> Excluir(
-            long idProcesso,
-            int idDocumento,
-            CancellationToken cancellationToken
-    )
+    [HttpGet("{idDocumento:int}/arquivo")]
+    public async Task<IActionResult> BaixarArquivo(
+        long idProcesso,
+        int idDocumento,
+        CancellationToken cancellationToken)
     {
         var documento = await _context.DocumentoProcessos
-       .SingleOrDefaultAsync(
-           item => item.IdDocumento == idDocumento
-               && item.IdProcesso == idProcesso,
-           cancellationToken);
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.IdDocumento == idDocumento
+                    && item.IdProcesso == idProcesso,
+                cancellationToken);
 
-        if(documento is null)
+        if (documento is null)
         {
             return NotFound("Documento não encontrado neste processo.");
         }
 
-        //Usa somente o nome do arquivo e monta o caminhho dentro da pasta deste processo
         var nomeArmazenado = Path.GetFileName(documento.CaminhoArmazenamento);
 
-        if(string.IsNullOrWhiteSpace(nomeArmazenado) || nomeArmazenado is "." or "..")
+        if (string.IsNullOrWhiteSpace(nomeArmazenado)
+            || nomeArmazenado is "." or "..")
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, "Nome do arquivo inválido.");
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "Nome do arquivo inválido.");
         }
 
         var caminhoFisico = Path.Combine(
@@ -322,11 +324,54 @@ public class DocumentosController : ControllerBase
             idProcesso.ToString(),
             nomeArmazenado);
 
-        //Remove primeiro o registro do banco
+        if (!System.IO.File.Exists(caminhoFisico))
+        {
+            return NotFound("Arquivo não encontrado no armazenamento.");
+        }
+
+        return PhysicalFile(
+            caminhoFisico,
+            documento.ContentType ?? "application/octet-stream",
+            documento.NomeArquivo);
+    }
+
+    [HttpDelete("{idDocumento:int}")]
+    public async Task<IActionResult> Excluir(
+        long idProcesso,
+        int idDocumento,
+        CancellationToken cancellationToken)
+    {
+        var documento = await _context.DocumentoProcessos
+            .SingleOrDefaultAsync(
+                item => item.IdDocumento == idDocumento
+                    && item.IdProcesso == idProcesso,
+                cancellationToken);
+
+        if (documento is null)
+        {
+            return NotFound("Documento não encontrado neste processo.");
+        }
+
+        var nomeArmazenado = Path.GetFileName(documento.CaminhoArmazenamento);
+
+        if (string.IsNullOrWhiteSpace(nomeArmazenado)
+            || nomeArmazenado is "." or "..")
+        {
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                "Nome do arquivo inválido.");
+        }
+
+        var caminhoFisico = Path.Combine(
+            _ambiente.ContentRootPath,
+            "storage",
+            "documentos",
+            idProcesso.ToString(),
+            nomeArmazenado);
+
         _context.DocumentoProcessos.Remove(documento);
         await _context.SaveChangesAsync(cancellationToken);
 
-        //Se a limpeza do arquivo falhar, registra o problema para investigação
         try
         {
             if (System.IO.File.Exists(caminhoFisico))
@@ -334,25 +379,23 @@ public class DocumentosController : ControllerBase
                 System.IO.File.Delete(caminhoFisico);
             }
         }
-
         catch (IOException erro)
         {
             _logger.LogError(
-            erro,
-            "Não foi possível apagar o arquivo do documento {IdDocumento}.",
-            idDocumento);
+                erro,
+                "Não foi possível apagar o arquivo do documento {IdDocumento}.",
+                idDocumento);
         }
-        catch(UnauthorizedAccessException erro)
+        catch (UnauthorizedAccessException erro)
         {
             _logger.LogError(
-            erro,
-            "Não foi possível apagar o arquivo do documento {IdDocumento}.",
-            idDocumento);
+                erro,
+                "Não foi possível apagar o arquivo do documento {IdDocumento}.",
+                idDocumento);
         }
 
         return NoContent();
     }
-
     private static DocumentoProcessoDto ConverterDocumento(
         DocumentoProcesso documento)
     {
