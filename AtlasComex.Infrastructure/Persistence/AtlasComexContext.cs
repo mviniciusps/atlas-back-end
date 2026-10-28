@@ -77,9 +77,7 @@ public partial class AtlasComexContext : DbContext
             entity.Property(e => e.LogradouroImportador).HasMaxLength(200);
             entity.Property(e => e.MunicipioImportador).HasMaxLength(100);
             entity.Property(e => e.NomeImportador)
-                .HasMaxLength(1)
-                .IsUnicode(false)
-                .IsFixedLength();
+                .HasMaxLength(200);
             entity.Property(e => e.NumeroEnderecoImportador).HasMaxLength(30);
             entity.Property(e => e.PaisImportador)
                 .HasMaxLength(10)

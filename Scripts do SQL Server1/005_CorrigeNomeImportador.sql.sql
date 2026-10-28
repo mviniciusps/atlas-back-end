@@ -1,0 +1,6 @@
+USE AtlasComex;
+GO
+
+ALTER TABLE dbo.Duimp
+ALTER COLUMN NomeImportador NVARCHAR(200) NULL;
+GO
