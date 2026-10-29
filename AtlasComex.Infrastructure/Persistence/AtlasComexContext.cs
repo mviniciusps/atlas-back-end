@@ -12,9 +12,15 @@ public partial class AtlasComexContext : DbContext
     {
     }
 
+    public virtual DbSet<CargaDuimp> CargaDuimps { get; set; }
+
+    public virtual DbSet<ComponenteFreteDuimp> ComponenteFreteDuimps { get; set; }
+
     public virtual DbSet<DocumentoProcesso> DocumentoProcessos { get; set; }
 
     public virtual DbSet<Duimp> Duimps { get; set; }
+
+    public virtual DbSet<EmbalagemDuimp> EmbalagemDuimps { get; set; }
 
     public virtual DbSet<EstabelecimentoImportador> EstabelecimentoImportadors { get; set; }
 
@@ -24,8 +30,76 @@ public partial class AtlasComexContext : DbContext
 
     public virtual DbSet<Processo> Processos { get; set; }
 
+    public virtual DbSet<UnidadeDespacho> UnidadeDespachos { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<CargaDuimp>(entity =>
+        {
+            entity.HasKey(e => e.IdDuimp);
+
+            entity.ToTable("CargaDuimp");
+
+            entity.Property(e => e.IdDuimp).ValueGeneratedNever();
+            entity.Property(e => e.CodigoMoedaFrete)
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.CodigoMoedaSeguro)
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.DataAtualizacao)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_CargaDuimp_DataAtualizacao");
+            entity.Property(e => e.DataCriacao)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(sysutcdatetime())", "DF_CargaDuimp_DataCriacao");
+            entity.Property(e => e.IdentificacaoCarga)
+                .HasMaxLength(32)
+                .IsUnicode(false);
+            entity.Property(e => e.LocalEmbarque).HasMaxLength(150);
+            entity.Property(e => e.PaisProcedencia)
+                .HasMaxLength(2)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.PesoBruto).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.PesoLiquido).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.TipoIdentificacaoCarga)
+                .HasMaxLength(3)
+                .IsUnicode(false);
+            entity.Property(e => e.ValorAfrmmTum).HasColumnType("decimal(19, 2)");
+            entity.Property(e => e.ValorFreteMoeda).HasColumnType("decimal(19, 6)");
+            entity.Property(e => e.ValorFreteReais).HasColumnType("decimal(19, 2)");
+            entity.Property(e => e.ValorSeguroMoeda).HasColumnType("decimal(19, 6)");
+            entity.Property(e => e.ValorSeguroReais).HasColumnType("decimal(19, 2)");
+
+            entity.HasOne(d => d.IdDuimpNavigation).WithOne(p => p.CargaDuimp)
+                .HasForeignKey<CargaDuimp>(d => d.IdDuimp)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_CargaDuimp_Duimp");
+        });
+
+        modelBuilder.Entity<ComponenteFreteDuimp>(entity =>
+        {
+            entity.HasKey(e => e.IdComponenteFreteDuimp);
+
+            entity.ToTable("ComponenteFreteDuimp");
+
+            entity.Property(e => e.Moeda)
+                .HasMaxLength(3)
+                .IsUnicode(false)
+                .IsFixedLength();
+            entity.Property(e => e.Pagamento).HasMaxLength(50);
+            entity.Property(e => e.Tipo).HasMaxLength(100);
+            entity.Property(e => e.ValorMoeda).HasColumnType("decimal(19, 6)");
+
+            entity.HasOne(d => d.IdDuimpNavigation).WithMany(p => p.ComponenteFreteDuimps)
+                .HasForeignKey(d => d.IdDuimp)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ComponenteFreteDuimp_CargaDuimp");
+        });
+
         modelBuilder.Entity<DocumentoProcesso>(entity =>
         {
             entity.HasKey(e => e.IdDocumento);
@@ -76,8 +150,7 @@ public partial class AtlasComexContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.LogradouroImportador).HasMaxLength(200);
             entity.Property(e => e.MunicipioImportador).HasMaxLength(100);
-            entity.Property(e => e.NomeImportador)
-                .HasMaxLength(200);
+            entity.Property(e => e.NomeImportador).HasMaxLength(200);
             entity.Property(e => e.NumeroEnderecoImportador).HasMaxLength(30);
             entity.Property(e => e.PaisImportador)
                 .HasMaxLength(10)
@@ -101,6 +174,22 @@ public partial class AtlasComexContext : DbContext
                 .HasForeignKey<Duimp>(d => d.IdProcesso)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Duimp_Processo");
+        });
+
+        modelBuilder.Entity<EmbalagemDuimp>(entity =>
+        {
+            entity.HasKey(e => e.IdEmbalagemDuimp);
+
+            entity.ToTable("EmbalagemDuimp");
+
+            entity.Property(e => e.Item).HasMaxLength(50);
+            entity.Property(e => e.Quantidade).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.Tipo).HasMaxLength(100);
+
+            entity.HasOne(d => d.IdDuimpNavigation).WithMany(p => p.EmbalagemDuimps)
+                .HasForeignKey(d => d.IdDuimp)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_EmbalagemDuimp_CargaDuimp");
         });
 
         modelBuilder.Entity<EstabelecimentoImportador>(entity =>
@@ -228,6 +317,22 @@ public partial class AtlasComexContext : DbContext
                 .HasForeignKey(d => d.IdEstabelecimento)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Processo_EstabelecimentoImportador");
+        });
+
+        modelBuilder.Entity<UnidadeDespacho>(entity =>
+        {
+            entity.HasKey(e => e.IdUnidadeDespachoDuimp).HasName("PK_UnidadeDespachoDuimp");
+
+            entity.ToTable("UnidadeDespacho");
+
+            entity.HasIndex(e => new { e.IdDuimp, e.CodigoUnidadeDespacho }, "UQ_UnidadeDespachoDuimp").IsUnique();
+
+            entity.Property(e => e.CodigoUnidadeDespacho).HasMaxLength(30);
+
+            entity.HasOne(d => d.IdDuimpNavigation).WithMany(p => p.UnidadeDespachos)
+                .HasForeignKey(d => d.IdDuimp)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UnidadeDespachoDuimp_CargaDuimp");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -45,6 +45,8 @@ public partial class Duimp
 
     public DateTime DataAtualizacao { get; set; }
 
+    public virtual CargaDuimp? CargaDuimp { get; set; }
+
     public virtual Processo IdProcessoNavigation { get; set; } = null!;
 
     public virtual ICollection<ItemDuimp> ItemDuimps { get; set; } = new List<ItemDuimp>();

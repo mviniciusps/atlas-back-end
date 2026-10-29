@@ -1,3 +1,4 @@
+using AtlasComex.Infrastructure.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace atlas_back_end.Dtos.Duimp;
@@ -26,7 +27,62 @@ public sealed class DuimpRascunhoDto
     public string? InformacoesComplementaresGeradas { get; set; }
     public string? InformacoesComplementaresAdicionais { get; set; }
 
+    public CargaDuimpDto? Carga { get; set; }
+
     public List<ItemDuimpDto> Itens { get; set; } = [];
+}
+
+public sealed class CargaDuimpDto
+{
+    [RegularExpression("^(CE|RUC)$")]
+    public string? TipoIdentificacaoCarga { get; set; }
+
+    [MaxLength(32)]
+    public string? IdentificacaoCarga { get; set; }
+
+    [MaxLength(150)]
+    public string? LocalEmbarque { get; set; }
+
+    public DateOnly? DataConhecimento { get; set; }
+
+    [RegularExpression("^[A-Za-z]{2}$")]
+    public string? PaisProcedencia { get; set; }
+
+    public decimal? PesoBruto { get; set; }
+    public decimal? PesoLiquido { get; set; }
+
+    [MaxLength(3)]
+    public string? CodigoMoedaFrete { get; set; }
+
+    public decimal? ValorFreteMoeda { get; set; }
+    public decimal? ValorFreteReais { get; set; }
+    public decimal? ValorAfrmmTum { get; set; }
+    public bool? AfrmmTumPago { get; set; }
+
+    [MaxLength(3)]
+    public string? CodigoMoedaSeguro { get; set; }
+
+    public decimal? ValorSeguroMoeda { get; set; }
+    public decimal? ValorSeguroReais { get; set; }
+
+    public List<string> UnidadesDespacho { get; set; } = [];
+    public List<ComponenteFreteDuimpDto> ComponentesFrete { get; set; } = [];
+    public List<EmbalagemDuimpDto> Embalagens { get; set; } = [];
+}
+
+public sealed class ComponenteFreteDuimpDto
+{
+    public string? Pagamento { get; set; }
+    public string? Tipo { get; set; }
+    public string? Moeda { get; set; }
+    public decimal? ValorMoeda { get; set; }
+}
+
+public sealed class EmbalagemDuimpDto
+{
+    public string? Item { get; set; }
+    public string? Tipo { get; set; }
+    public decimal? Quantidade { get; set; }
 }
 
 public sealed class ItemDuimpDto

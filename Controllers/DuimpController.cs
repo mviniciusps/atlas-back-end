@@ -10,6 +10,7 @@ namespace atlas_back_end.Controllers;
 [Route("api/processos/{idProcesso:long}/duimp")]
 public sealed class DuimpController : ControllerBase
 {
+
     private readonly AtlasComexContext _context;
 
     public DuimpController(AtlasComexContext context)
@@ -39,6 +40,14 @@ public sealed class DuimpController : ControllerBase
             .OrderBy(item => item.NumeroItem)
             .ToListAsync(cancellationToken);
 
+        var carga = await _context.CargaDuimps
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(item => item.UnidadeDespachos)
+            .Include(item => item.ComponenteFreteDuimps)
+            .Include(item => item.EmbalagemDuimps)
+            .FirstOrDefaultAsync(item => item.IdDuimp == duimp.IdDuimp, cancellationToken);
+
         var resposta = new DuimpRascunhoDto
         {
             TipoPessoaImportador = duimp.TipoPessoaImportador,
@@ -58,6 +67,7 @@ public sealed class DuimpController : ControllerBase
             InformacoesComplementaresGeradas = duimp.InformacoesComplementaresGeradas,
             InformacoesComplementaresAdicionais = duimp.InformacoesComplementaresAdicionais,
 
+            Carga = carga is null ? null : MapearCargaParaDto(carga),
             Itens = itens.Select(MapearItemParaDto).ToList()
         };
 
@@ -78,6 +88,22 @@ public sealed class DuimpController : ControllerBase
 
         if (dados.Itens.GroupBy(item => item.NumeroItem).Any(grupo => grupo.Count() > 1))
             return BadRequest("A lista contém números de item duplicados.");
+
+        if (dados.Carga is not null)
+        {
+            if (dados.Carga.UnidadesDespacho is null ||
+                dados.Carga.ComponentesFrete is null ||
+                dados.Carga.Embalagens is null)
+            {
+                return BadRequest("As listas da carga não podem ser nulas.");
+            }
+
+            if (dados.Carga.TipoIdentificacaoCarga == "CE" &&
+                (dados.Carga.IdentificacaoCarga?.Length ?? 0) > 15)
+            {
+                return BadRequest("A identificação da carga do tipo CE deve ter até 15 caracteres.");
+            }
+        }
 
         var processoExiste = await _context.Processos
             .AnyAsync(processo => processo.IdProcesso == idProcesso, cancellationToken);
@@ -122,6 +148,11 @@ public sealed class DuimpController : ControllerBase
         // Salva o cabeçalho para obter o IdDuimp antes de gravar os itens.
         await _context.SaveChangesAsync(cancellationToken);
 
+        if (dados.Carga is not null)
+        {
+            await AtualizarCargaAsync(duimp.IdDuimp, dados.Carga, cancellationToken);
+        }
+
         var itensExistentes = await _context.ItemDuimps
             .Where(item => item.IdDuimp == duimp.IdDuimp)
             .ToListAsync(cancellationToken);
@@ -157,6 +188,48 @@ public sealed class DuimpController : ControllerBase
         await transacao.CommitAsync(cancellationToken);
 
         return NoContent();
+    }
+
+    private static CargaDuimpDto MapearCargaParaDto(CargaDuimp carga)
+    {
+        return new CargaDuimpDto
+        {
+            TipoIdentificacaoCarga = carga.TipoIdentificacaoCarga,
+            IdentificacaoCarga = carga.IdentificacaoCarga,
+            LocalEmbarque = carga.LocalEmbarque,
+            DataConhecimento = carga.DataConhecimento,
+            PaisProcedencia = carga.PaisProcedencia,
+            PesoBruto = carga.PesoBruto,
+            PesoLiquido = carga.PesoLiquido,
+            CodigoMoedaFrete = carga.CodigoMoedaFrete,
+            ValorFreteMoeda = carga.ValorFreteMoeda,
+            ValorFreteReais = carga.ValorFreteReais,
+            ValorAfrmmTum = carga.ValorAfrmmTum,
+            AfrmmTumPago = carga.AfrmmTumPago,
+            CodigoMoedaSeguro = carga.CodigoMoedaSeguro,
+            ValorSeguroMoeda = carga.ValorSeguroMoeda,
+            ValorSeguroReais = carga.ValorSeguroReais,
+            UnidadesDespacho = carga.UnidadeDespachos
+                .Select(unidade => unidade.CodigoUnidadeDespacho)
+                .ToList(),
+            ComponentesFrete = carga.ComponenteFreteDuimps
+                .Select(componente => new ComponenteFreteDuimpDto
+                {
+                    Pagamento = componente.Pagamento,
+                    Tipo = componente.Tipo,
+                    Moeda = componente.Moeda,
+                    ValorMoeda = componente.ValorMoeda
+                })
+                .ToList(),
+            Embalagens = carga.EmbalagemDuimps
+                .Select(embalagem => new EmbalagemDuimpDto
+                {
+                    Item = embalagem.Item,
+                    Tipo = embalagem.Tipo,
+                    Quantidade = embalagem.Quantidade
+                })
+                .ToList()
+        };
     }
 
     private static ItemDuimpDto MapearItemParaDto(ItemDuimp item)
@@ -236,5 +309,103 @@ public sealed class DuimpController : ControllerBase
         destino.MetodoValoracao = origem.MetodoValoracao;
         destino.Incoterm = origem.Incoterm;
         destino.CoberturaCambial = origem.CoberturaCambial;
+    }
+
+    private async Task AtualizarCargaAsync(
+        long idDuimp,
+        CargaDuimpDto dados,
+        CancellationToken cancellationToken)
+    {
+        var carga = await _context.CargaDuimps
+            .FirstOrDefaultAsync(item => item.IdDuimp == idDuimp, cancellationToken);
+
+        if (carga is null)
+        {
+            carga = new CargaDuimp
+            {
+                IdDuimp = idDuimp
+            };
+
+            _context.CargaDuimps.Add(carga);
+        }
+
+        carga.TipoIdentificacaoCarga = dados.TipoIdentificacaoCarga;
+        carga.IdentificacaoCarga = dados.IdentificacaoCarga;
+        carga.LocalEmbarque = dados.LocalEmbarque;
+        carga.DataConhecimento = dados.DataConhecimento;
+        carga.PaisProcedencia = dados.PaisProcedencia;
+        carga.PesoBruto = dados.PesoBruto;
+        carga.PesoLiquido = dados.PesoLiquido;
+        carga.CodigoMoedaFrete = dados.CodigoMoedaFrete;
+        carga.ValorFreteMoeda = dados.ValorFreteMoeda;
+        carga.ValorFreteReais = dados.ValorFreteReais;
+        carga.ValorAfrmmTum = dados.ValorAfrmmTum;
+        carga.AfrmmTumPago = dados.AfrmmTumPago;
+        carga.CodigoMoedaSeguro = dados.CodigoMoedaSeguro;
+        carga.ValorSeguroMoeda = dados.ValorSeguroMoeda;
+        carga.ValorSeguroReais = dados.ValorSeguroReais;
+        carga.DataAtualizacao = DateTime.UtcNow;
+
+        // Persiste a carga antes das listas que dependem dela.
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var unidadesExistentes = await _context.UnidadeDespachos
+            .Where(item => item.IdDuimp == idDuimp)
+            .ToListAsync(cancellationToken);
+
+        var componentesExistentes = await _context.ComponenteFreteDuimps
+            .Where(item => item.IdDuimp == idDuimp)
+            .ToListAsync(cancellationToken);
+
+        var embalagensExistentes = await _context.EmbalagemDuimps
+            .Where(item => item.IdDuimp == idDuimp)
+            .ToListAsync(cancellationToken);
+
+        _context.UnidadeDespachos.RemoveRange(unidadesExistentes);
+        _context.ComponenteFreteDuimps.RemoveRange(componentesExistentes);
+        _context.EmbalagemDuimps.RemoveRange(embalagensExistentes);
+
+        // As listas recebidas substituem as listas anteriores nesta atualização.
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var codigosUnidade = dados.UnidadesDespacho
+            .Where(codigo => !string.IsNullOrWhiteSpace(codigo))
+            .Select(codigo => codigo.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(codigo => new UnidadeDespacho
+            {
+                IdDuimp = idDuimp,
+                CodigoUnidadeDespacho = codigo
+            })
+            .ToList();
+
+        _context.UnidadeDespachos.AddRange(codigosUnidade);
+
+        var componentesNovos = dados.ComponentesFrete
+            .Select(componente => new ComponenteFreteDuimp
+            {
+                IdDuimp = idDuimp,
+                Pagamento = componente.Pagamento,
+                Tipo = componente.Tipo,
+                Moeda = componente.Moeda,
+                ValorMoeda = componente.ValorMoeda
+            })
+            .ToList();
+
+        _context.ComponenteFreteDuimps.AddRange(componentesNovos);
+
+        var embalagensNovas = dados.Embalagens
+            .Select(embalagem => new EmbalagemDuimp
+            {
+                IdDuimp = idDuimp,
+                Item = embalagem.Item,
+                Tipo = embalagem.Tipo,
+                Quantidade = embalagem.Quantidade
+            })
+            .ToList();
+
+        _context.EmbalagemDuimps.AddRange(embalagensNovas);
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }
