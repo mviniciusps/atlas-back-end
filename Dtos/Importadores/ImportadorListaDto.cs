@@ -12,5 +12,4 @@ public sealed class EstabelecimentoListaDto
 {
     public int IdEstabelecimento { get; set; }
     public string Cnpj { get; set; } = string.Empty;
-    public string? NomeEstabelecimento { get; set; }
 }

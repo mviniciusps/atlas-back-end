@@ -1,3 +1,4 @@
+using atlas_back_end.Services.Integracoes;
 using AtlasComex.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,12 @@ var connectionStringn = builder.Configuration.GetConnectionString("AtlasComex")
 
 builder.Services.AddDbContext<AtlasComexContext>(options =>
     options.UseSqlServer(connectionStringn));
+
+builder.Services.AddHttpClient<BrasilApiCnpjService>(cliente =>
+{
+    cliente.BaseAddress = new Uri("https://brasilapi.com.br/api/cnpj/v1/");
+    cliente.Timeout = TimeSpan.FromSeconds(10);
+});
 
 // Add services to the container.
 builder.Services.AddCors(options =>

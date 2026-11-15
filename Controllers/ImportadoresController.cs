@@ -32,12 +32,11 @@ public class ImportadoresController : ControllerBase
                 RazaoSocial = importador.RazaoSocial,
                 NomeFantasia = importador.NomeFantasia,
                 Estabelecimentos = importador.EstabelecimentoImportadors
-                    .Where(estabelecimento => estabelecimento.Ativo)
+                    //.Where(estabelecimento => estabelecimento.Ativo)
                     .Select(estabelecimento => new EstabelecimentoListaDto
                     {
                         IdEstabelecimento = estabelecimento.IdEstabelecimento,
-                        Cnpj = estabelecimento.Cnpj,
-                        NomeEstabelecimento = estabelecimento.NomeEstabelecimento
+                        Cnpj = estabelecimento.Cnpj
                     })
                     .ToList()
             })
@@ -104,10 +103,7 @@ public class ImportadoresController : ControllerBase
             importador.EstabelecimentoImportadors.Add(
                 new EstabelecimentoImportador
                 {
-                    Cnpj = estabelecimento.Cnpj,
-                    NomeEstabelecimento =
-                        estabelecimento.Dados.NomeEstabelecimento?.Trim(),
-                    Ativo = true
+                    Cnpj = estabelecimento.Cnpj
                 });
         }
 

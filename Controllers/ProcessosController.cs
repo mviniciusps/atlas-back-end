@@ -77,8 +77,7 @@ public class ProcessosController : ControllerBase
         var estabelecimento = await _context.EstabelecimentoImportadors
             .AsNoTracking()
             .Where(item =>
-                item.IdEstabelecimento == dados.IdEstabelecimento
-                && item.Ativo)
+                item.IdEstabelecimento == dados.IdEstabelecimento)
             .Select(item => new
             {
                 item.IdEstabelecimento,
@@ -143,7 +142,8 @@ public class ProcessosController : ControllerBase
             item => item.IdProcesso == idProcesso,
             cancellationToken);
 
-        if(processo is null){
+        if (processo is null)
+        {
             return NotFound("Processo não encontrado.");
         }
 

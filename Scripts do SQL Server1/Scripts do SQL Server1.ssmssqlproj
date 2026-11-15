@@ -1,8 +1,25 @@
-<?xml version="1.0" encoding="utf-8"?>
-<SqlWorkbenchSqlProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="SqlWorkbenchSqlProject">
+<?xml version="1.0"?>
+<SqlWorkbenchSqlProject xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Name="Scripts do SQL Server1">
   <Items>
-    <LogicalFolder Name="Connections" Type="2" />
-    <LogicalFolder Name="Queries" Type="0">
+    <LogicalFolder Name="Conexões" Type="2" Sorted="true">
+      <Items>
+        <ConnectionNode Name="MARCUS\SQLEXPRESS:MARCUS\marcu">
+          <Created>2026-10-26T16:55:23.4447835-03:00</Created>
+          <Type>SQL</Type>
+          <Server>MARCUS\SQLEXPRESS</Server>
+          <UserName />
+          <Authentication>Autenticação do Windows</Authentication>
+          <InitialDB />
+          <LoginTimeout>30</LoginTimeout>
+          <TrustServerCertificate>True</TrustServerCertificate>
+          <EncryptionOption>True</EncryptionOption>
+          <ExecutionTimeout>0</ExecutionTimeout>
+          <ConnectionProtocol>NotSpecified</ConnectionProtocol>
+          <ApplicationName>Microsoft SQL Server Management Studio - Consulta</ApplicationName>
+        </ConnectionNode>
+      </Items>
+    </LogicalFolder>
+    <LogicalFolder Name="Consultas" Type="0" Sorted="true">
       <Items>
         <FileNode Name="001_EstruturaAtlasComex.sql">
           <AssociatedConnectionMoniker />
@@ -22,9 +39,40 @@
           <AssociatedConnUserName />
           <FullPath>003_GestaoDocumentosProcesso.sql</FullPath>
         </FileNode>
+        <FileNode Name="004_DuimpRascunho.sql.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:MARCUS\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>MARCUS\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>004_DuimpRascunho.sql.sql</FullPath>
+        </FileNode>
+        <FileNode Name="005_CorrigeNomeImportador.sql.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:MARCUS\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>MARCUS\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>005_CorrigeNomeImportador.sql.sql</FullPath>
+        </FileNode>
+        <FileNode Name="006_CargaDuimp.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>006_CargaDuimp.sql</FullPath>
+        </FileNode>
+        <FileNode Name="007_EnderecoEstabelecimentoImportador.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:MARCUS\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>MARCUS\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>007_EnderecoEstabelecimentoImportador.sql</FullPath>
+        </FileNode>
+        <FileNode Name="008_ReduzEnderecoEstabelecimento.sql.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:MARCUS\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>MARCUS\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>008_ReduzEnderecoEstabelecimento.sql.sql</FullPath>
+        </FileNode>
       </Items>
     </LogicalFolder>
-    <LogicalFolder Name="Miscellaneous" Type="3" />
-
+    <LogicalFolder Name="Diversos" Type="3" Sorted="true">
+      <Items />
+    </LogicalFolder>
   </Items>
 </SqlWorkbenchSqlProject>

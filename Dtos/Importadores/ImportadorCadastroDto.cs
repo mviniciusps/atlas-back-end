@@ -21,8 +21,5 @@ public sealed class EstabelecimentoCadastroDto
         [Required]
         [StringLength(18)]
         public string Cnpj { get; set; } = string.Empty;
-
-        [StringLength(200)]
-        public string? NomeEstabelecimento { get; set; }
     }
 }

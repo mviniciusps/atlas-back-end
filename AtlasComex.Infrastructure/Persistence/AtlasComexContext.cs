@@ -200,11 +200,21 @@ public partial class AtlasComexContext : DbContext
 
             entity.HasIndex(e => e.Cnpj, "UQ_EstabelecimentoImportador_Cnpj").IsUnique();
 
-            entity.Property(e => e.Ativo).HasDefaultValue(true, "DF_EstabelecimentoImportador_Ativo");
+            entity.Property(e => e.Bairro).HasMaxLength(100);
+            entity.Property(e => e.Cep)
+                .HasMaxLength(8)
+                .IsUnicode(false);
             entity.Property(e => e.Cnpj)
                 .HasMaxLength(14)
                 .IsUnicode(false);
-            entity.Property(e => e.NomeEstabelecimento).HasMaxLength(200);
+            entity.Property(e => e.ComplementoEndereco).HasMaxLength(200);
+            entity.Property(e => e.Logradouro).HasMaxLength(200);
+            entity.Property(e => e.Municipio).HasMaxLength(100);
+            entity.Property(e => e.NumeroEndereco).HasMaxLength(30);
+            entity.Property(e => e.Uf)
+                .HasMaxLength(2)
+                .IsUnicode(false)
+                .IsFixedLength();
 
             entity.HasOne(d => d.IdImportadorNavigation).WithMany(p => p.EstabelecimentoImportadors)
                 .HasForeignKey(d => d.IdImportador)
