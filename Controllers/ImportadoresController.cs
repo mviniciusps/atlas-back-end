@@ -1,4 +1,5 @@
 using atlas_back_end.Dtos.Importadores;
+using atlas_back_end.Services.Integracoes;
 using AtlasComex.Infrastructure.Models;
 using AtlasComex.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,15 @@ namespace atlas_back_end.Controllers;
 public class ImportadoresController : ControllerBase
 {
     private readonly AtlasComexContext _context;
+    private readonly BrasilApiCnpjService _brasilApiCnpjService;
 
-    public ImportadoresController(AtlasComexContext context)
+    // O serviço é fornecido pelo contêiner de dependências registrado no Program.cs.
+    public ImportadoresController(
+        AtlasComexContext context,
+        BrasilApiCnpjService brasilApiCnpjService)
     {
         _context = context;
+        _brasilApiCnpjService = brasilApiCnpjService;
     }
 
     // Lista importadores ativos e seus estabelecimentos ativos para montar as abas do frontend.
@@ -45,6 +51,81 @@ public class ImportadoresController : ControllerBase
         return Ok(importadores);
     }
 
+    [HttpGet("consultar-cnpj")]
+    public async Task<ActionResult<ImportadorCnpjConsultaDto>> ConsultarCnpj(
+        [FromQuery] string cnpj,
+        CancellationToken cancellationToken)
+    {
+        var cnpjNormalizado = new string(
+                cnpj.Where(char.IsAsciiLetterOrDigit).ToArray())
+            .ToUpperInvariant();
+
+        var formatoValido =
+            cnpjNormalizado.Length == 14 &&
+            cnpjNormalizado.Take(12).All(char.IsAsciiLetterOrDigit) &&
+            cnpjNormalizado.Skip(12).All(char.IsAsciiDigit);
+
+        if (!formatoValido)
+        {
+            return BadRequest(
+                "Informe um CNPJ com 12 letras ou números seguidos de 2 dígitos.");
+        }
+
+        try
+        {
+            var resposta = await _brasilApiCnpjService.ConsultarAsync(
+                cnpjNormalizado,
+                cancellationToken
+            );
+
+            if (resposta is null)
+            {
+                return NotFound("CNPJ não encontrado.");
+            }
+
+            if (string.IsNullOrWhiteSpace(resposta.RazaoSocial))
+            {
+                return StatusCode(
+                StatusCodes.Status502BadGateway,
+                "A BrasilAPI não retornou a razão social.");
+            }
+
+            var dadosImportador = new ImportadorCnpjConsultaDto
+            {
+                Cnpj = cnpjNormalizado,
+                RazaoSocial = resposta.RazaoSocial,
+                Logradouro = resposta.Logradouro,
+                NumeroEndereco = resposta.Numero,
+                ComplementoEndereco = resposta.Complemento,
+                Bairro = resposta.Bairro,
+                Municipio = resposta.Municipio,
+                Uf = resposta.Uf,
+                Cep = resposta.Cep is null
+                    ? null
+                    : new string(resposta.Cep.Where(char.IsAsciiDigit).ToArray())
+            };
+
+            return Ok(dadosImportador);
+        }
+        catch (ArgumentException erro)
+        {
+            return BadRequest(erro.Message);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(
+                StatusCodes.Status504GatewayTimeout,
+                "A consulta à BrasilAPI excedeu o tempo limite.");
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                "Não foi possível consultar a BrasilAPI.");
+        }
+    }
+
     // Cria o importador e seus CNPJs em uma única operação.
     [HttpPost]
     public async Task<IActionResult> Criar(
@@ -62,14 +143,19 @@ public class ImportadoresController : ControllerBase
                 Dados = estabelecimento,
                 Cnpj = new string(
                     estabelecimento.Cnpj
-                        .Where(char.IsDigit)
+                        .Where(char.IsAsciiLetterOrDigit)
+                        .Select(char.ToUpperInvariant)
                         .ToArray())
             })
             .ToList();
 
-        if (estabelecimentos.Any(estabelecimento => estabelecimento.Cnpj.Length != 14))
+        if (estabelecimentos.Any(estabelecimento =>
+                estabelecimento.Cnpj.Length != 14 ||
+                !estabelecimento.Cnpj.Take(12).All(char.IsAsciiLetterOrDigit) ||
+                !estabelecimento.Cnpj.Skip(12).All(char.IsAsciiDigit)))
         {
-            return BadRequest("Cada CNPJ deve conter 14 dígitos.");
+            return BadRequest(
+                "Cada CNPJ deve ter 12 letras ou números, seguidos de 2 dígitos.");
         }
 
         var cnpjs = estabelecimentos
@@ -103,7 +189,14 @@ public class ImportadoresController : ControllerBase
             importador.EstabelecimentoImportadors.Add(
                 new EstabelecimentoImportador
                 {
-                    Cnpj = estabelecimento.Cnpj
+                    Cnpj = estabelecimento.Cnpj,
+                    Logradouro = estabelecimento.Dados.Logradouro?.Trim(),
+                    NumeroEndereco = estabelecimento.Dados.NumeroEndereco?.Trim(),
+                    ComplementoEndereco = estabelecimento.Dados.ComplementoEndereco?.Trim(),
+                    Bairro = estabelecimento.Dados.Bairro?.Trim(),
+                    Municipio = estabelecimento.Dados.Municipio?.Trim(),
+                    Uf = estabelecimento.Dados.Uf?.Trim().ToUpperInvariant(),
+                    Cep = estabelecimento.Dados.Cep?.Trim()
                 });
         }
 

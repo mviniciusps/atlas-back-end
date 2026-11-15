@@ -25,6 +25,13 @@ public sealed class BrasilApiCnpjService
             return null;
         }
 
+        if (resposta.StatusCode == HttpStatusCode.BadRequest)
+        {
+            throw new ArgumentException(
+                "A BrasilAPI considerou o CNPJ inválido.",
+                nameof(cnpj));
+        }
+
         resposta.EnsureSuccessStatusCode();
 
         return await resposta.Content
