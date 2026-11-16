@@ -1,3 +1,4 @@
+using System.Net;
 using atlas_back_end.Dtos.Importadores;
 using atlas_back_end.Services.Integracoes;
 using AtlasComex.Infrastructure.Models;
@@ -13,14 +14,20 @@ public class ImportadoresController : ControllerBase
 {
     private readonly AtlasComexContext _context;
     private readonly BrasilApiCnpjService _brasilApiCnpjService;
+    private readonly ReceitaWsCnpjService _receitaWsCnpjService;
+    private readonly ILogger<ImportadoresController> _logger;
 
     // O serviço é fornecido pelo contêiner de dependências registrado no Program.cs.
     public ImportadoresController(
         AtlasComexContext context,
-        BrasilApiCnpjService brasilApiCnpjService)
+        BrasilApiCnpjService brasilApiCnpjService,
+        ReceitaWsCnpjService receitaWsCnpjService,
+        ILogger<ImportadoresController> logger)
     {
         _context = context;
         _brasilApiCnpjService = brasilApiCnpjService;
+        _receitaWsCnpjService = receitaWsCnpjService;
+        _logger = logger;
     }
 
     // Lista importadores ativos e seus estabelecimentos ativos para montar as abas do frontend.
@@ -71,59 +78,148 @@ public class ImportadoresController : ControllerBase
                 "Informe um CNPJ com 12 letras ou números seguidos de 2 dígitos.");
         }
 
+        ImportadorCnpjConsultaDto? dadosImportador = null;
+
+        // A BrasilAPI é a primeira fonte. Falhas temporárias levam à tentativa pela ReceitaWS.
         try
         {
-            var resposta = await _brasilApiCnpjService.ConsultarAsync(
+            var respostaBrasilApi = await _brasilApiCnpjService.ConsultarAsync(
                 cnpjNormalizado,
-                cancellationToken
-            );
+                cancellationToken);
 
-            if (resposta is null)
+            if (respostaBrasilApi is not null &&
+                !string.IsNullOrWhiteSpace(respostaBrasilApi.RazaoSocial))
             {
-                return NotFound("CNPJ não encontrado.");
+                dadosImportador = new ImportadorCnpjConsultaDto
+                {
+                    Cnpj = cnpjNormalizado,
+                    RazaoSocial = respostaBrasilApi.RazaoSocial,
+                    Logradouro = respostaBrasilApi.Logradouro,
+                    NumeroEndereco = respostaBrasilApi.Numero,
+                    ComplementoEndereco = respostaBrasilApi.Complemento,
+                    Bairro = respostaBrasilApi.Bairro,
+                    Municipio = respostaBrasilApi.Municipio,
+                    Uf = respostaBrasilApi.Uf,
+                    Cep = respostaBrasilApi.Cep is null
+                        ? null
+                        : new string(respostaBrasilApi.Cep.Where(char.IsAsciiDigit).ToArray())
+                };
             }
-
-            if (string.IsNullOrWhiteSpace(resposta.RazaoSocial))
-            {
-                return StatusCode(
-                StatusCodes.Status502BadGateway,
-                "A BrasilAPI não retornou a razão social.");
-            }
-
-            var dadosImportador = new ImportadorCnpjConsultaDto
-            {
-                Cnpj = cnpjNormalizado,
-                RazaoSocial = resposta.RazaoSocial,
-                Logradouro = resposta.Logradouro,
-                NumeroEndereco = resposta.Numero,
-                ComplementoEndereco = resposta.Complemento,
-                Bairro = resposta.Bairro,
-                Municipio = resposta.Municipio,
-                Uf = resposta.Uf,
-                Cep = resposta.Cep is null
-                    ? null
-                    : new string(resposta.Cep.Where(char.IsAsciiDigit).ToArray())
-            };
-
-            return Ok(dadosImportador);
         }
         catch (ArgumentException erro)
         {
             return BadRequest(erro.Message);
         }
-        catch (OperationCanceledException)
+        catch (HttpRequestException erro)
+        {
+            _logger.LogWarning(
+                erro,
+                "Falha ao consultar o CNPJ {Cnpj} na BrasilAPI.",
+                cnpjNormalizado);
+        }
+        catch (OperationCanceledException erro)
             when (!cancellationToken.IsCancellationRequested)
         {
-            return StatusCode(
-                StatusCodes.Status504GatewayTimeout,
-                "A consulta à BrasilAPI excedeu o tempo limite.");
+            _logger.LogWarning(
+                erro,
+                "A consulta do CNPJ {Cnpj} na BrasilAPI excedeu o tempo limite.",
+                cnpjNormalizado);
         }
-        catch (HttpRequestException)
+        catch (System.Text.Json.JsonException erro)
         {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                "Não foi possível consultar a BrasilAPI.");
+            _logger.LogWarning(
+                erro,
+                "A BrasilAPI retornou JSON inválido para o CNPJ {Cnpj}.",
+                cnpjNormalizado);
         }
+
+        // Tenta a ReceitaWS quando a BrasilAPI não trouxe dados utilizáveis.
+        if (dadosImportador is null)
+        {
+            try
+            {
+                var respostaReceitaWs = await _receitaWsCnpjService.ConsultarAsync(
+                    cnpjNormalizado,
+                    cancellationToken);
+
+                if (respostaReceitaWs is not null &&
+                    string.Equals(
+                        respostaReceitaWs.Status,
+                        "OK",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(respostaReceitaWs.RazaoSocial))
+                {
+                    dadosImportador = new ImportadorCnpjConsultaDto
+                    {
+                        Cnpj = cnpjNormalizado,
+                        RazaoSocial = respostaReceitaWs.RazaoSocial,
+                        Logradouro = respostaReceitaWs.Logradouro,
+                        NumeroEndereco = respostaReceitaWs.Numero,
+                        ComplementoEndereco = respostaReceitaWs.Complemento,
+                        Bairro = respostaReceitaWs.Bairro,
+                        Municipio = respostaReceitaWs.Municipio,
+                        Uf = respostaReceitaWs.Uf,
+                        Cep = respostaReceitaWs.Cep is null
+                            ? null
+                            : new string(respostaReceitaWs.Cep.Where(char.IsAsciiDigit).ToArray())
+                    };
+                }
+                else if (respostaReceitaWs is not null &&
+                         !string.IsNullOrWhiteSpace(respostaReceitaWs.Mensagem))
+                {
+                    _logger.LogInformation(
+                        "A ReceitaWS não retornou dados para o CNPJ {Cnpj}: {Mensagem}",
+                        cnpjNormalizado,
+                        respostaReceitaWs.Mensagem);
+                }
+            }
+            catch (OperationCanceledException erro)
+                when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogError(
+                    erro,
+                    "A consulta do CNPJ {Cnpj} excedeu o tempo limite na ReceitaWS.",
+                    cnpjNormalizado);
+                return StatusCode(
+                    StatusCodes.Status504GatewayTimeout,
+                    "A consulta de CNPJ excedeu o tempo limite.");
+            }
+            catch (HttpRequestException erro)
+            {
+                _logger.LogError(
+                    erro,
+                    "Falha ao consultar o CNPJ {Cnpj} na ReceitaWS.",
+                    cnpjNormalizado);
+
+                var limiteAtingido = erro.StatusCode == HttpStatusCode.TooManyRequests;
+                var statusCode = limiteAtingido
+                    ? StatusCodes.Status503ServiceUnavailable
+                    : StatusCodes.Status502BadGateway;
+                var mensagem = limiteAtingido
+                    ? "O limite de consultas da ReceitaWS foi atingido. Aguarde e tente novamente."
+                    : "Não foi possível consultar o CNPJ na BrasilAPI nem na ReceitaWS.";
+
+                return StatusCode(statusCode, mensagem);
+            }
+            catch (System.Text.Json.JsonException erro)
+            {
+                _logger.LogError(
+                    erro,
+                    "A ReceitaWS retornou JSON inválido para o CNPJ {Cnpj}.",
+                    cnpjNormalizado);
+                return StatusCode(
+                    StatusCodes.Status502BadGateway,
+                    "A ReceitaWS retornou uma resposta inválida.");
+            }
+        }
+
+        if (dadosImportador is null)
+        {
+            return NotFound(
+                "O CNPJ não foi encontrado ou não está disponível nas bases consultadas.");
+        }
+
+        return Ok(dadosImportador);
     }
 
     // Cria o importador e seus CNPJs em uma única operação.

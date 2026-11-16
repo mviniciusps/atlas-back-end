@@ -12,9 +12,7 @@ public sealed class BrasilApiCnpjService
         _httpClient = httpClient;
     }
 
-    public async Task<BrasilApiCnpjResposta?> ConsultarAsync(
-        string cnpj,
-        CancellationToken cancellationToken)
+    public async Task<BrasilApiCnpjResposta?> ConsultarAsync(string cnpj, CancellationToken cancellationToken)
     {
         using var resposta = await _httpClient.GetAsync(
             cnpj,

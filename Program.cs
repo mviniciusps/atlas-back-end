@@ -16,6 +16,12 @@ builder.Services.AddHttpClient<BrasilApiCnpjService>(cliente =>
     cliente.Timeout = TimeSpan.FromSeconds(10);
 });
 
+builder.Services.AddHttpClient<ReceitaWsCnpjService>(cliente =>
+{
+    cliente.BaseAddress = new Uri("https://receitaws.com.br/v1/cnpj/");
+    cliente.Timeout = TimeSpan.FromSeconds(15);
+});
+
 // Add services to the container.
 builder.Services.AddCors(options =>
 {
